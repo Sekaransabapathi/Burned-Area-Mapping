@@ -108,3 +108,4 @@ print('ricecrop_area masking with ESA landcover',ricecrop_area);
 //   description: 'ludhiana_ricelayer_2022',
 //   maxPixels: 10000000000000,
 // });
+
