@@ -1,6 +1,7 @@
 //Water, rice, buildings and trees featurecollection should be imported as an Earth Engine feature collection asset.
-//Earth Engine featurecolletion asset of boundary of punjab
+//Water, buildings and trees are available as .geojson files in 'Data' folder of this repository.
 
+//Earth Engine featurecolletion asset of boundary of punjab
 var punjab_boundary = ee.FeatureCollection("projects/ee-dhanasekaraniirs/assets/punjab_boundary_2")
 
 //sentinel 1 Images are obtained for the different time-periods.
