@@ -1,7 +1,7 @@
 # Burned-Area-Mapping
 The repository contains information and code about mapping agriculture residue burned area. The code is prepared by considering the study area as Indian State, Punjab.
 
-Data in the 'Data' folder are water, trees, buildings points mapped from Google earth imagery and stored as .geojson format. These files have to be uploaded as GEE asset and imported while running the code.
+Data in the 'Data' folder are water, trees, buildings points mapped from Google earth imagery and stored as .geojson format. These files have to be uploaded as GEE asset and should be imported while running the code.
 
 All the codes in 'code' folder are written in Google Earth Engine Code Editor.
 
