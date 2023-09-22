@@ -1,0 +1,379 @@
+//quality mosaic code//
+
+/**
+* Function to mask clouds using the Sentinel-2 QA band
+* @param {ee.Image} image Sentinel-2 image
+* @return {ee.Image} cloud masked Sentinel-2 image
+*/
+
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+
+//filtering sentinel2 image collection for the time period and filtering less than 20% cloud.
+var dataset_sep15_nov30_2020 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                  .filterDate('2022-09-15', '2022-11-30')
+                  // Pre-filter to get less cloudy granules.
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',20))
+                  .map(maskS2clouds)
+                  .filterBounds(pb_boundary);
+print('dataset_sep15_nov30_2020',dataset_sep15_nov30_2020);
+
+var list = dataset_sep15_nov30_2020.toList(dataset_sep15_nov30_2020.size());
+print(list);
+// print(dataset_sep15_nov30_2020.size());
+// print(list.length().getInfo());
+
+// for (var i = 0; i < list.length().getInfo(); i++) {
+//   var img = ee.Image(list.get(i))
+//   Map.addLayer(img, {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 0.3},'img',false)
+//   print (i, img)
+// }
+
+//Visualization parameters for the sentinel imagery
+var visualization = {
+  min: 0.0,
+  max: 0.3,
+  bands: ['B4', 'B3','B2'],
+};
+Map.centerObject(pb_boundary,8);
+Map.addLayer(dataset_sep15_nov30_2020,visualization,'sentinel2',false);
+
+//function for calculating BAIS2 and adding it as a band to the images in imagecollection
+function bais2_function(image){
+  var bais2 = image.expression(
+  '(1-((B06*B07*B8A)/B04)**0.5)*((B12-B8A)/((B12+B8A)**0.5)+1)',{
+    'B06':image.select('B6'),
+    'B07':image.select('B7'),
+    'B8A':image.select('B8A'),
+    'B04':image.select('B4'),
+    'B12':image.select('B12')
+    }).rename('bais2');
+    return image.addBands([bais2]);
+}
+
+//function for calculating nbr and adding it as a band in the image.
+function nbr_function(image){
+  var nbr = image.normalizedDifference(['B8','B12']).rename('nbr');
+  return image.addBands([nbr]); 
+}
+
+// function ndwi_function(image){
+//   var nbr = image.normalizedDifference(['B3','B8']).rename('ndwi');
+//   return image.addBands([ndwi]); 
+// }
+
+
+//function for calculating tbi and adding it as a band to the images in imagecollection
+function tbi_function(image){
+  var tbi = image.expression(
+    '(0.3510*B2)+(0.3813*B3)+(0.3437*B4)+(0.7196*B8)+(0.2396*B11)+(0.1949*B12)',{
+      'B2':image.select('B2'),
+      'B3':image.select('B3'),
+      'B4':image.select('B4'),
+      'B8':image.select('B8'),
+      'B11':image.select('B11'),
+      'B12':image.select('B12')
+    }).rename('tbi');
+    return image.addBands([tbi]);
+}
+
+//mapping the image collection for bais2 and nbr indices
+var dataset_sep15_nov30_2020_indices = dataset_sep15_nov30_2020.map(bais2_function).map(nbr_function);
+
+print('dataset_sep15_nov30_2020_indices',dataset_sep15_nov30_2020_indices);
+
+//function for applying threshold value of bais2
+function bais2_threshold(image){
+  var bais2_quality = image.select('bais2').clip(pb_boundary).gte(0.9084).rename('bais2_quality');
+  return image.addBands([bais2_quality]);
+}
+//function for applying threshold value of nbr
+function nbr_threshold(image){
+  var nbr_quality = image.select('nbr').clip(pb_boundary).lte(-0.1425).rename('nbr_quality');
+  return image.addBands([nbr_quality]);
+}
+
+
+// functionndwi_threshold(image){
+//   var ndwi_quality = image.select('ndwi').clip(pb_boundary).gte(0).rename('ndwi_quality');
+//   return image.addBands([ndwi_quality]);
+// }
+
+// function composite_index(image){
+//   var composite_quality = (image.select('bais2').clip(pb_boundary).gte(0.812)
+//                             .and(image.select('nbr').clip(pb_boundary).lte(-0.0232))).rename('composite_quality');
+//   return image.addBands([composite_quality]);
+// }
+
+// function tbi_threshold(image){
+//   var tbi_quality = image.select('tbi').clip(pb_boundary).gte(0.251).rename('tbi_quality');
+//   return image.addBands([tbi_quality]);
+// }
+
+//mapping the bais2 and nbr value threshold over the images in imagecollection
+var dataset_sep15_nov30_2020_quality = dataset_sep15_nov30_2020_indices.map(bais2_threshold).map(nbr_threshold);
+                                          
+print('dataset_sep15_nov30_2020_quality',dataset_sep15_nov30_2020_quality);
+
+//applying quality mosaic function over the imagecollection using bais2 quality layer
+var bais2_quality = dataset_sep15_nov30_2020_quality.qualityMosaic('bais2_quality').select(['bais2_quality','bais2']);
+print('bais2_quality',bais2_quality);
+
+Map.addLayer(bais2_quality,{},'bais2_quality',false);
+
+// var tbi_quality = dataset_sep15_nov30_2020_quality.qualityMosaic('tbi_quality').select(['tbi_quality','tbi']);
+// print('tbi_quality',tbi_quality);
+
+// Map.addLayer(tbi_quality,{},'tbi_quality');
+
+// applying quality mosaic function over the imagecollection using nbr quality layer
+var nbr_quality = dataset_sep15_nov30_2020_quality.qualityMosaic('nbr_quality').select(['nbr_quality','nbr']);
+// print('nbr_quality',nbr_quality);
+
+Map.addLayer(nbr_quality,{},'nbr_quality',false);
+
+// var composite_quality = dataset_sep15_nov30_2020_quality.qualityMosaic('composite_quality').select(['composite_quality']);
+// print('composite_quality',composite_quality);
+
+// Map.addLayer(composite_quality,{},'composite_quality');
+
+// to draw a chart having time series value of bais2 for Unburnt Ground Control Point
+var bais2_chart_unburnt = ui.Chart.image.seriesByRegion(dataset_sep15_nov30_2020_quality,unburnt,ee.Reducer.mean(),'bais2',10,'system:index').setOptions({
+              title : 'bais2 unburnt',
+              vAxis: {title: 'bais2_value'},
+});
+print(bais2_chart_unburnt);
+
+// to draw a chart having time series value of bais2 for Burnt Ground Control Point
+var bais2_chart_burnt = ui.Chart.image.seriesByRegion(dataset_sep15_nov30_2020_quality,burnt,ee.Reducer.mean(),'bais2',10,'system:index').setOptions({
+              title : 'bais2 burnt',
+              vAxis: {title: 'bais2_value'},
+});
+print(bais2_chart_burnt);
+
+// to draw a chart having time series value of bais2 for active fire point
+var bais2_chart_active_fire = ui.Chart.image.seriesByRegion(dataset_sep15_nov30_2020_quality,active_fire,ee.Reducer.mean(),'bais2',10,'system:index').setOptions({
+              title : 'bais2 active_fire',
+              vAxis: {title: 'bais2_value'},
+});
+print(bais2_chart_active_fire);
+
+// to draw a chart having time series value of bais2 for active second fire point
+var bais2_chart_active_fire_2 = ui.Chart.image.seriesByRegion(dataset_sep15_nov30_2020_quality,active_fire_2,ee.Reducer.mean(),'bais2',10,'system:index').setOptions({
+              title : 'bais2 active_fire_2',
+              vAxis: {title: 'bais2_value'},
+});
+print(bais2_chart_active_fire_2);
+
+// to draw a chart having time series value of bais2 for a point where there is abrupt change in visualisation
+var bais2_chart_doubt = ui.Chart.image.seriesByRegion(dataset_sep15_nov30_2020_quality,doubt,ee.Reducer.mean(),'bais2',10,'system:index').setOptions({
+              title : 'bais2 doubt',
+              vAxis: {title: 'bais2_value'},
+});
+print(bais2_chart_doubt);
+
+//reprojecting the mncfc rice layer to UTM ZONE 43N
+var pb_rice_mncfc_projected = pb_rice_mncfc.reproject('EPSG:32643',null,10).clip(pb_boundary);
+// print('pb_rice_mncfc_projected',pb_rice_mncfc_projected);
+
+//Finding the area of rice layer
+var pb_rice_mncfc_projected_area = ee.Image.pixelArea().updateMask(pb_rice_mncfc_projected).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: pb_boundary,
+                        scale: 10,
+                        bestEffort: true,
+                        crs:'EPSG:32643'
+                      });
+                      
+print('pb_rice_mncfc_projected_area',pb_rice_mncfc_projected_area);
+
+//Finding the burned area by applying nbr threshold
+var burned_area_nbr = ee.Image.pixelArea().updateMask(nbr_quality.select('nbr_quality')).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: pb_boundary,
+                        scale: 10,
+                        bestEffort: true,
+                        crs:'EPSG:32643'
+                      });
+print('burned area threshold with nbr',burned_area_nbr);
+
+//Image which is demarcated as burned in nbr and rice in MNCFC rice layer
+var nbr_threshold_rice_mncfc = nbr_quality.select('nbr_quality').eq(1).and(pb_rice_mncfc_projected.eq(1));
+
+Map.addLayer(nbr_threshold_rice_mncfc,{min:0,max:1},'nbr_threshold_rice_mncfc',false);
+
+//Image which is demarcated as unburned in nbr and rice in MNCFC rice layer
+var nbr_threshold_rice_mncfc_unburned = nbr_quality.select('nbr_quality').eq(0).and(pb_rice_mncfc_projected.eq(1));
+Map.addLayer(nbr_threshold_rice_mncfc_unburned,{min:0,max:1},'nbr_threshold_rice_mncfc_unburned',false);
+
+//Finding the burned area by applying nbr threshold and masking with MNCFC rice layer
+var burned_area_nbr_rice_mncfc = ee.Image.pixelArea().updateMask(nbr_threshold_rice_mncfc).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: pb_boundary,
+                        scale: 10,
+                        bestEffort: true,
+                        crs:'EPSG:32643'
+                      });
+print('burned area applying nbr threshold and masking with MNCFC rice layer',burned_area_nbr_rice_mncfc);
+
+//Finding the burned area by applying bais2 threshold
+var burned_area_bais2 = ee.Image.pixelArea().updateMask(bais2_quality.select('bais2_quality')).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: pb_boundary,
+                        scale: 100,
+                        bestEffort: true,
+                        crs:'EPSG:32643'
+                      });
+print('burned area threshold with bais2',burned_area_bais2);
+
+//Image which is demarcated as burned in bais2 and rice in MNCFC rice layer
+var bais2_threshold_rice_mncfc = bais2_quality.select('bais2_quality').eq(1).and(pb_rice_mncfc_projected.eq(1));
+
+Map.addLayer(bais2_threshold_rice_mncfc,{min:0,max:1},'bais2_threshold_rice_mncfc',false);
+Map.addLayer(active_fire_pts_2020,{},'active_fire_pts_2020',false);
+
+Map.addLayer(pb_rice_mncfc_projected,{min:0,max:1},'pb_rice_mncfc_projected',false);
+
+//Image which is demarcated as unburned in bais2 and rice in MNCFC rice layer
+var bais2_threshold_rice_mncfc_unburned = bais2_quality.select('bais2_quality').eq(0).and(pb_rice_mncfc_projected.eq(1));
+Map.addLayer(bais2_threshold_rice_mncfc_unburned,{min:0,max:1},'bais2_threshold_rice_mncfc_unburned',false);
+
+//Finding the burned area by applying bais2 threshold and masking with MNCFC rice layer
+var burned_area_bais2_rice_mncfc = ee.Image.pixelArea().updateMask(bais2_threshold_rice_mncfc).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: pb_boundary,
+                        scale: 10,
+                        bestEffort: true,
+                        crs:'EPSG:32643'
+                      });
+                      
+print('burned area applying bais2 threshold and masking with MNCFC rice layer',burned_area_bais2_rice_mncfc);
+
+// //Finding the burned area by applying composite threshold
+// var burned_area_composite = ee.Image.pixelArea().updateMask(composite_quality.select('composite_quality')).divide(1e6)
+//                       .reduceRegion({
+//                         reducer: ee.Reducer.sum(),
+//                         geometry: pb_boundary,
+//                         scale: 10,
+//                         bestEffort: true,
+//                         crs:'EPSG:32643'
+//                       });
+// print('burned area threshold with composite',burned_area_composite);
+
+// var composite_threshold_rice_mncfc = composite_quality.select('composite_quality').eq(1).and(pb_rice_mncfc_projected.eq(1));
+// // print('nbr_threshold_rice_mncfc',nbr_threshold_rice_mncfc);
+// Map.addLayer(composite_threshold_rice_mncfc,{min:0,max:1},'composite_threshold_rice_mncfc',false);
+
+// //Finding the burned area by applying composite threshold and masking with MNCFC rice layer
+// var burned_area_composite_rice_mncfc = ee.Image.pixelArea().updateMask(composite_threshold_rice_mncfc).divide(1e6)
+//                       .reduceRegion({
+//                         reducer: ee.Reducer.sum(),
+//                         geometry: pb_boundary,
+//                         scale: 10,
+//                         bestEffort: true,
+//                         crs:'EPSG:32643'
+//                       });
+// print('burned area after applying composite threshold and masking with MNCFC rice layer',burned_area_composite_rice_mncfc);
+
+
+
+//Selecting the burnt points for the particular attribute
+var rice_coor_2022_burnt = ee.FeatureCollection(rice_coordinates_2022).select('layer')
+                    .filter(ee.Filter.equals('layer','Burnt_url'));
+print('rice_coor_2022_burnt',rice_coor_2022_burnt);                    
+
+var rice_coor_2022_partial_burnt = ee.FeatureCollection(rice_coordinates_2022).select('layer')
+                    .filter(ee.Filter.equals('layer','Partial burnt_url'));
+print('rice_coor_2022_partial_burnt',rice_coor_2022_partial_burnt);   
+
+//merging unburnt and burnt and partial burnt points
+var rice_coor_2022_burnt_all = rice_coor_2022_burnt.merge(rice_coor_2022_partial_burnt);
+print('rice_coor_2022_burnt_all',rice_coor_2022_burnt_all);
+
+Map.addLayer(rice_coor_2022_burnt_all,{color:'red'},'rice_coor_2022_burnt_all',false);
+
+//Selecting the unburnt points for the particular attribute
+var rice_coor_2022_unburnt = ee.FeatureCollection(rice_coordinates_2022).select('layer')
+                    .filter(ee.Filter.equals('layer','Unburnt_url'));
+                    // .or(ee.FeatureCollection(rice_coordinates_2022).select('layer').filter(ee.Filter.equals('layer','Unburnt + exsitu_url')));
+print('rice_coor_2022_unburnt',rice_coor_2022_unburnt);
+
+var rice_coor_2022_unburnt_exsitu = ee.FeatureCollection(rice_coordinates_2022).select('layer')
+                    .filter(ee.Filter.equals('layer','Unburnt + exsitu_url'));
+print('rice_coor_2022_unburnt_exsitu',rice_coor_2022_unburnt_exsitu);
+
+//merging unburnt and unburnt-exsitu points
+var rice_coor_2022_unburnt_all = rice_coor_2022_unburnt.merge(rice_coor_2022_unburnt_exsitu);
+print('rice_coor_2022_unburnt_all',rice_coor_2022_unburnt_all);
+
+Map.addLayer(rice_coor_2022_unburnt_all,{color:'green'},'rice_coor_2022_unburnt_all',false);
+
+//sampling the values for all burnt points over the area marked as burned by bis2 threshold and rice by MNCFC
+var sample_rice_coor_2022 = bais2_threshold_rice_mncfc.select('bais2_quality').sampleRegions({
+  collection: rice_coor_2022_burnt_all,
+  properties:['layer'],
+  scale:10
+});
+print('sample_rice_coor_2022',sample_rice_coor_2022);
+
+//creating histogram for the sampled values
+var sample_rice_coor_2022_hist = sample_rice_coor_2022.aggregate_histogram('bais2_quality');
+print('sample_rice_coor_2022_hist_burnt',sample_rice_coor_2022_hist);
+
+//sampling the values for all unburnt points over the area marked as unburned by bis2 threshold and rice by MNCFC
+var sample_rice_coor_2022_unburnt = bais2_threshold_rice_mncfc_unburned.select('bais2_quality').sampleRegions({
+  collection: rice_coor_2022_unburnt_all,
+  properties:['layer'],
+  scale:10
+});
+print('sample_rice_coor_2022_unburnt',sample_rice_coor_2022_unburnt);
+
+//creating histogram for the sampled values
+var sample_rice_coor_2022_hist_unburnt = sample_rice_coor_2022_unburnt.aggregate_histogram('bais2_quality');
+print('sample_rice_coor_2022_hist_unburnt',sample_rice_coor_2022_hist_unburnt);
+
+
+
+// //Finding the burned area by each districtwise using nbr quality mask layer
+// var burned_area_districtwise_nbr = ee.Image.pixelArea().updateMask(nbr_threshold_rice_mncfc.select('nbr_quality')).divide(1e6)
+//                       .reduceRegions({
+//                         reducer: ee.Reducer.sum(),
+//                         collection: pb_districts,
+//                         scale: 10,
+//                         crs:'EPSG:32643'
+//                       });
+// print('burned area districtwise_nbr',burned_area_districtwise_nbr);
+
+// Export.table.toDrive({
+//   collection:burned_area_districtwise_nbr
+// });
+
+// //Finding the burned area by each districtwise using bais2 quality mask layer
+// var burned_area_districtwise_bais2 = bais2_threshold_rice_mncfc.select('bais2_quality')
+//                       .reduceRegions({
+//                         reducer: ee.Reducer.sum(),
+//                         collection: pb_districts,
+//                         scale: 10,
+//                         crs:'EPSG:32643'
+//                       });
+// print('burned area districtwise_bais2',burned_area_districtwise_bais2);
+
+// Export.table.toDrive({
+//   collection:burned_area_districtwise_bais2
+// });
