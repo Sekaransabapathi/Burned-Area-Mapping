@@ -1,0 +1,248 @@
+
+
+//To add percentage of rice fields burned
+//tabular form of burned area in districts
+
+ 
+// Use the start of the collection and now to bound the slider.
+var start = ee.Date.fromYMD(2017,3,28).get('year').format(); //The date from which S2_SR is available
+// print(start)
+var now = Date.now();
+// // print(ee.Date(now))
+var end = ee.Date(now).format();
+// // print(end)
+
+Map.centerObject(pb_boundary,8);
+
+var filter_collection = function(range){
+  verPanel1.clear()
+  Map.layers().reset();
+    //Function to mask clouds in Sentinel-2 imagery
+  function maskS2clouds(image){
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11; 
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000)
+              .set({'system:time_start':image.get('system:time_start')});
+  }
+  // var year_int = ee.Number.parse(year);
+  var collection_year = range.start().get('year');
+  var date_start = ee.Date.fromYMD(collection_year,9,15);
+  print('date_start',date_start);
+  // var date_end = range.end();
+  // print('date_end',date_end)
+  var date_end = range.start();
+  print('date_end',date_end);
+  
+  
+  var number_of_days = date_end.difference(date_start,'day');
+  print('number_of_days',number_of_days);
+  
+  var days = ui.Label({
+  value:'Number of days from September 15th'
+  });
+  verPanel1.add(days);
+  
+  var days_value = ui.Label({
+  value:'Calculating...'
+  });
+  verPanel1.add(days_value);
+  
+  number_of_days.evaluate(function(days_count){
+  days_value.setValue(days_count)})
+
+  
+  var s2_collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',20))
+                  .select('B4','B3','B2','B6','B7','B8A','B8','B12','QA60')
+                  .filterDate(date_start,date_end)
+                  .filterBounds(pb_boundary)
+                  .map(maskS2clouds);
+  // print('s2_collection', s2_collection);  
+  
+  //function for calculating BAIS2 and adding it as a band to the images in imagecollection
+  function bais2_function(image){
+  var bais2 = image.expression(
+  '(1-((B06*B07*B8A)/B04)**0.5)*((B12-B8A)/((B12+B8A)**0.5)+1)',{
+    'B06':image.select('B6'),
+    'B07':image.select('B7'),
+    'B8A':image.select('B8A'),
+    'B04':image.select('B4'),
+    'B12':image.select('B12')
+    }).rename('bais2');
+    return image.addBands([bais2]);
+  }
+
+  //function for calculating nbr and adding it as a band in the image.
+  function nbr_function(image){
+    var nbr = image.normalizedDifference(['B8','B12']).rename('nbr');
+    return image.addBands([nbr]); 
+  }
+
+  var dataset_sep15_nov30_indices = s2_collection.map(bais2_function).map(nbr_function);
+
+  //function for applying threshold value of bais2
+  function bais2_threshold(image){
+    var bais2_quality = image.select('bais2').clip(pb_boundary).gte(0.9084).rename('bais2_quality');
+    return image.addBands([bais2_quality]);
+  }
+  //function for applying threshold value of nbr
+  function nbr_threshold(image){
+    var nbr_quality = image.select('nbr').clip(pb_boundary).lte(-0.1425).rename('nbr_quality');
+    return image.addBands([nbr_quality]);
+  }
+
+  //mapping the bais2 and nbr value threshold over the images in imagecollection
+  var dataset_sep15_nov30_quality = dataset_sep15_nov30_indices.map(bais2_threshold).map(nbr_threshold);
+                                            
+  print('dataset_sep15_nov30_quality',dataset_sep15_nov30_quality);
+  
+  //applying quality mosaic function over the imagecollection using bais2 quality layer
+  var bais2_quality = dataset_sep15_nov30_quality.qualityMosaic('bais2_quality').select(['bais2_quality','bais2']);
+  // print('bais2_quality',bais2_quality);
+
+
+  var pb_rice_mncfc_projected = pb_rice_mncfc.reproject('EPSG:32643',null,10).clip(pb_boundary);
+  // print('pb_rice_mncfc_projected',pb_rice_mncfc_projected);
+  
+  var bais2_threshold_rice_mncfc = bais2_quality.select('bais2_quality').eq(1).and(pb_rice_mncfc_projected.eq(1));
+  Map.addLayer(bais2_threshold_rice_mncfc.selfMask(),{min:0,max:1,palette:['red']},'bais2_threshold_rice_mncfc');
+  Map.addLayer(pb_districts,{},'Punjab districts',false,0.6);
+  
+  var district_area = ee.Image.pixelArea().updateMask(bais2_threshold_rice_mncfc).divide(1e6)
+        .reduceRegions({
+          collection:pb_districts,
+          reducer:ee.Reducer.sum(),
+          scale:100,
+          crs:'EPSG:32643'
+  });
+  print(district_area);
+  var district_name = district_area.aggregate_array('District');
+  var dt_area = ee.Array(district_area.aggregate_array('sum'));
+  print(district_name);
+  print(dt_area);
+  
+  // Create a chart using the selected columns
+  var chart = ui.Chart.array.values(dt_area,0,district_name)
+  .setSeriesNames(['Burned_area_value'])
+  .setChartType('ColumnChart')
+  .setOptions({
+    title: 'District wise burned area in Punjab',
+    hAxis: { title: 'District_name' },
+    vAxis: { title: 'Burned_area (in sq.km)' }
+  });
+  
+    var table = ui.Chart.feature.byFeature(district_area, 'District','sum');
+    table.setChartType('Table');
+    table.setOptions({allowHtml: true, pageSize:10});
+    table.style().set({stretch: 'both'});
+    print(table);
+    
+  var pb_boundary_geom = pb_boundary.geometry();
+  
+  //Finding the burned area by applying bais2 threshold and masking with MNCFC rice layer
+  var burned_area_bais2_rice_mncfc = ee.Image.pixelArea().updateMask(bais2_threshold_rice_mncfc).divide(1e6)
+                        .reduceRegion({
+                          reducer: ee.Reducer.sum(),
+                          geometry: pb_boundary_geom,
+                          scale: 100,
+                          bestEffort: true,
+                          crs:'EPSG:32643'
+                        });
+                        
+  
+  var area_dict = burned_area_bais2_rice_mncfc.getNumber('area').round();
+  print('area_dict',area_dict);
+  
+  date_end.format('dd-MM-YYYY').evaluate(function(date_nd){
+    var burned_area_value_label = ui.Label({
+    value:'Burned area till'+ ' ' + date_nd + ' in sq.km'
+    });
+    verPanel1.add(burned_area_value_label);
+
+  
+  var burned_area_value = ui.Label({
+    value :'Calculating...'
+  });
+  verPanel1.add(burned_area_value).add(chart);
+  
+  area_dict.evaluate(function(area_value){
+  burned_area_value.setValue(area_value);
+  });
+  });
+ 
+};
+
+
+//MAIN PANEL
+var mainPanel = ui.Panel({
+  style: {width: '600px'}
+});
+
+
+//main panel label
+var title = ui.Label({
+  value: 'Mapping agricultural residue burns in Punjab',
+  style: {fontWeight: 'bold',fontSize: '24px'}
+});  
+
+//main panel description
+var sec_title = ui.Label({
+  value: "An Earth engine application to map the agricultural residue burned area using satellite imagery from Sentinel-2 sensors in the Indian state, Punjab.",
+  style: {'fontSize': '18px',}
+});
+
+//Adding Panels to Main Panel - vertical
+
+var verPanel1 = ui.Panel({
+  layout: ui.Panel.Layout.flow('vertical'),
+  });
+ 
+var legend = ui.Label({
+  value:'Red colour denotes burned area in map',
+  style: {fontSize: '15px'}
+})
+ 
+var slider_title =ui.Label({
+  value:"Select any date from 16th September to 30th November",
+  style: {fontWeight: 'bold',fontSize: '15px'}
+});
+
+var slider_instruction =ui.Label({
+  value:"That period is the rice stubble burning season in Punjab (Kharif)",
+  style: {fontSize: '15px'}
+});
+
+
+var textbox_title = ui.Label({
+  value:"Burned Area",
+  style: {fontWeight: 'bold',fontSize: '15px'}
+});
+
+
+
+mainPanel.add(title).add(sec_title).add(legend).add(slider_title).add(slider_instruction)
+
+// Asynchronously compute the date range and show the slider.
+var dateRange = ee.DateRange(start, end).evaluate(function(range){
+  var dateSlider = ui.DateSlider({
+    start: range['dates'][0],
+    end: range['dates'][1],
+    value: ee.Date.fromYMD(2019,01,01),
+    period: 1,
+    onChange: filter_collection,
+    style: {width: '180px', border :'1px solid black'}
+  });
+
+  mainPanel.add(dateSlider).add(verPanel1);
+});
+
+ui.root.add(mainPanel);
+
