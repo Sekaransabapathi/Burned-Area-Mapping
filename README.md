@@ -15,3 +15,5 @@ Data in the 'Data' folder are in .geojson, zip formats. These files have to be u
 All the codes in the 'code' folder are written in Google Earth Engine Code Editor.
 
 Initially, rice is mapped in this project, and that rice layer is further used for crop residue burned area analysis. The reference papers are given in the 'docs' folder.
+
+Change-1
