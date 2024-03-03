@@ -17,7 +17,7 @@ Rice mapping has been done with the SAR data obtained from Sentinel-1. Rice fiel
 #### 2. Sensitivity analysis for burned area mapping
 Sentinel-2 is an optical sensor that takes images of Earth at 13 different wavelength regions. Utilizing some of the images of the sensor, an index is developed to map burned areas. It is named as Burned Area Index for Sentinel-2 (reference). 
 
-![Formula](https://drive.google.com/file/d/1BdLa-b8_c1MGKHbcitXFQRL05jO2rJOP/view?usp=sharing)
+![Formula](https://drive.google.com/uc?authuser=0&id=1BdLa-b8_c1MGKHbcitXFQRL05jO2rJOP&export=download)
 
 There were 123 samples of active fire points in the Punjab state for the date 03/11/2020. Using those points as a reference, the range of BAIS-2 values is found. Sensitivity analysis has been performed with different percentile values of BAIS-2. 50th percentile value had higher true positives and true negatives for ground samples points from rice fields. Therefore, the 50th percentile value is considered in this study.
 
