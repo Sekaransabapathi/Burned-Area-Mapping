@@ -19,10 +19,17 @@ Sentinel-2 is an optical sensor that takes images of Earth at 13 different wavel
 
 ![Formula](https://drive.google.com/uc?authuser=0&id=1BdLa-b8_c1MGKHbcitXFQRL05jO2rJOP&export=download)
 
-There were 123 samples of active fire points in the Punjab state for the date 03/11/2020. Using those points as a reference, the range of BAIS-2 values is found. Sensitivity analysis has been performed with different percentile values of BAIS-2. 50th percentile value had higher true positives and true negatives for ground samples points from rice fields. Therefore, the 50th percentile value is considered in this study.
+There were 123 samples of active fire points in the Punjab state for the date 03/11/2020. Using those points as a reference, the range of BAIS-2 values is found. Sensitivity analysis has been performed with different percentile values of BAIS-2. Burned and unburned field samples are available for the year 2022. They were used for the sensitivity analysis. 50th percentile value had higher true positives and true negatives. Therefore, the 50th percentile value is considered as a threshold in this study.
 
 #### 3. Earth Engine Application for mapping agriculture residue burned area
-Based on literature review, the harvesting dates has been considered between September 15 to November 30th of any particular year. 
+Based on the trends of harvesting the Kharif crops in Punjab, the harvesting dates have been considered between September 15 and November 30th of any particular year. The application is built to get the area of rice fields burned during that time period for any particular year (from 2019. Based on Sentinel-2 data availability for the region).
+
+Image of the application
+
+Insights from the chart
+
+Data structure
+
 Codes for the separate objectives are given in the folder 'Code'
 
 Data in the 'Data' folder are in .geojson, zip formats. These files have to be uploaded as GEE asset and should be imported while running the code.
@@ -32,3 +39,7 @@ All the codes in 'code' folder are written in Google Earth Engine Code Editor.
 Initially rice is mapped in this project and that rice layer is further used for crop residue burned area analysis. Reference paper used for writing the code is given in the folder 'docs' folder.
 
 [1](https://www.researchgate.net/publication/335490095_Rice_Acreage_Estimation_of_Ludhiana_District_using_Sentinel-1A_Time_Series_Data)
+
+Acknowledgements
+
+For what other reasons can the application be used!!
