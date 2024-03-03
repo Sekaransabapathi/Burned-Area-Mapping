@@ -12,7 +12,7 @@ The study can be divided into the following sub-sections.
 3. Earth engine application for mapping agriculture residue burned area
 ---
 #### 1. Rice mapping
-    Rice mapping has been done with the SAR data obtained from Sentinel-1. Rice fields have been mapped based on the backscattering value's thresholding technique. The backscatter values used as thresholds are followed by the study of Anuradha et al. [1](https://www.researchgate.net/publication/335490095_Rice_Acreage_Estimation_of_Ludhiana_District_using_Sentinel-1A_Time_Series_Data)
+    Rice mapping has been done with the SAR data obtained from Sentinel-1. Rice fields have been mapped based on the backscattering value's thresholding technique. The backscatter values used as thresholds are followed by the study of Anuradha et al. [1](https://www.researchgate.net/publication/335490095_Rice_Acreage_Estimation_of_Ludhiana_District_using_Sentinel-1A_Time_Series_Data "link")
 
 Codes for the separate objectives are given in the folder 'Code'
 
