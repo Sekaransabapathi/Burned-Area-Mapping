@@ -1,0 +1,108 @@
+## punjab_boundary - punjab boundary layer
+
+//The necessary feature collections for the analysis has to be added.
+
+//filtering the imagecollection with necessary polarisation, mode, resolution.
+var imgVH = ee.ImageCollection('COPERNICUS/S1_GRD')
+        .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH'))
+        .filter(ee.Filter.eq('instrumentMode', 'IW'))
+        .filter(ee.Filter.eq('resolution_meters', 10))
+        .select('VH').filterBounds(punjab_boundary);
+        
+// print('Sentinel-1 Image collection',imgVH);
+
+//filtering the collection only for Ascending orbit
+var asc = imgVH.filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING'));
+
+//segregating the collection based on rice sowing and ripening period
+var ascsow = asc.filterDate('2022-06-01', '2022-07-30');
+var ascripe = asc.filterDate('2022-08-01', '2022-11-01');
+
+print('ascripe',ascripe);
+
+//the change in backscatter coefficient is found in this line of code
+var ascrange = ascripe.max().subtract(ascsow.min());
+
+//Buitup, water and rice using ascending orbit images
+var builtup_asc = ascsow.select('VH').min().gte(-19.0).clip(punjab_boundary);
+print('builtup layer',builtup_asc);
+
+var water_asc = ascripe.select('VH').max().lte(-20.0).clip(punjab_boundary);
+
+var rice_withoutbtwt_asc = ascrange.gte(6.05).and(ascsow.min().lt(-19.0)).and(ascripe.max().gt(-20.0)).clip(punjab_boundary);
+// var test3 = ascrange.gte(5.0).and(ascbuiltup.lt(-19.0)).and(ascwater.gt(-20.0)).clip(geometry);
+
+//Builtup area in the layer
+var builtup_asc_area = ee.Image.pixelArea();
+var builtup_asc_area_value = builtup_asc_area.updateMask(builtup_asc);
+var builtup_area = builtup_asc_area_value.divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: punjab_boundary,
+                        scale: 10,
+                        bestEffort: true
+                      });
+print('builtup',builtup_area);
+
+//Finding the area of Water in the layer
+var water_area = ee.Image.pixelArea().updateMask(water_asc).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: punjab_boundary,
+                        scale: 10,
+                        bestEffort: true
+                      });
+                      
+print('water',water_area);
+
+//Finding the area of rice in the layer
+var rice_area = ee.Image.pixelArea().updateMask(rice_withoutbtwt_asc).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: punjab_boundary,
+                        scale: 10,
+                        bestEffort: true
+                      });
+                      
+print('rice',rice_area);
+
+Map.setCenter(75.0, 32, 8);
+
+//Mapping the layers.
+Map.addLayer(builtup_asc.selfMask(), {'palette':'#FFFF00'}, 'builtup_asc',false);
+Map.addLayer(water_asc.selfMask(), {'palette':'#FF0000'}, 'water_asc',false);
+
+Map.addLayer(rice_withoutbtwt_asc.selfMask(), {'palette':'#21ff20'}, 'rice_withoutbtwt_asc',false);
+Map.addLayer(punjab_boundary,{},'proj',false);
+
+// Landcover dataset from ESA
+var dataset = ee.ImageCollection("ESA/WorldCover/v100").first().clip(punjab_boundary);
+var landcover_crop = dataset.eq(40);
+Map.addLayer(landcover_crop,{},'crop',false);
+
+var visualization = {
+  bands: ['Map'],
+};
+
+Map.addLayer(dataset, visualization, "Landcover",false);
+
+//finding the locations where rice layer matches with crop layer in ESA landcover crop layer.
+var rice_crop = rice_withoutbtwt_asc.eq(1).and(landcover_crop.eq(1));
+Map.addLayer(rice_crop.selfMask(),{min:0,max:1,palette:['green']},'rice_crop',false);
+
+//Finding the updated area of rice
+var ricecrop_area = ee.Image.pixelArea().updateMask(rice_crop).divide(1e6)
+                      .reduceRegion({
+                        reducer: ee.Reducer.sum(),
+                        geometry: punjab_boundary,
+                        scale: 10,
+                        bestEffort: true
+                      });
+                      
+print('ricecrop_area masking with ESA landcover',ricecrop_area);
+
+Export.image.toDrive({
+  image: rice_crop,
+  description: 'ludhiana_ricelayer_2022',
+  maxPixels: 10000000000000,
+});
