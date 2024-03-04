@@ -24,7 +24,7 @@ There were 123 samples of active fire points in the Punjab state for the date 03
 #### 3. Earth Engine Application for mapping agriculture residue burned area
 Based on the harvesting trends of Kharif crops in Punjab, the harvesting dates have been considered to be between September 15 and November 30 of any particular year. The application is built to get the area of rice fields burned during that time period for any particular year from 2019. (Based on Sentinel-2 data availability for the region).
 
-![application](https://drive.google.com/uc?authuser=0&id=1A_0e94_1xz8jPdW09u6X2YbF-r4cj_Z4&export=download)
+![application](https://drive.google.com/uc?authuser=0&id=1ddwymDhlPxQZnBj6A3J_43ghD0nQqzcW&export=download)
 
 Codes for the separate objectives are given in the folder 'Code'
 
@@ -38,7 +38,7 @@ The application can be reused for,
 1. other study areas.
 2. other indices in place of BAIS-2.
 3. other time periods.
-4. other applications like flood area mapping, places affected by heat stress in an year, etc.
+4. other applications like flood area mapping, places affected by heat stress in a year, etc.
 
 [1](https://www.researchgate.net/publication/335490095_Rice_Acreage_Estimation_of_Ludhiana_District_using_Sentinel-1A_Time_Series_Data)
 
