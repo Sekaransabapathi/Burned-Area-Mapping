@@ -103,6 +103,6 @@ print('ricecrop_area masking with ESA landcover',ricecrop_area);
 
 Export.image.toDrive({
   image: rice_crop,
-  description: 'ludhiana_ricelayer_2022',
+  description: 'punjab_ricelayer_2022',
   maxPixels: 10000000000000,
 });
