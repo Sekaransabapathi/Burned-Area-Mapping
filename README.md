@@ -29,14 +29,21 @@ Based on the harvesting trends of Kharif crops in Punjab, the harvesting dates h
 #### Repository structure
 
 Code
+  |
   |__Rice_mapping_ - GEE code for rice mapping
+  |
   |__Burned_area_application_ - GEE for burned area mapping
 
 Data
+  |
   |__Active_fire_points_2020.zip_ - ESRI point shapefile for active fire points mapped from Sentinel-2 image in 2020 for Punjab 
+  |
   |__Punjab_districts_boundary.zip_ - ESRI polygon shapefile for Punjab districts boundary
+  |
   |__Punjab_state_boundary.zip_ - ESRI polygon shapefile for Punjab state boundary
+  |
   |__Rice_fields_coordinates.zip_ - ESRI point shapefile for rice fields and their postharvest management status for 2022.
+  |
   |__Punjab_rice_fields_layer_2022.tif_ Punjab rice fields layer for 2022.
   
 ---
