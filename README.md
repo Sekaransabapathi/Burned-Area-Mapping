@@ -50,7 +50,9 @@ The application can be reused for,
 #### References
 
 [1] Niti Gupta (2019) ‘Paddy Residue Burning in Punjab: Understanding Farmers' Perspectives and Rural Air Pollution’, March. https://www.ceew.in/sites/default/files/CEEW-Paddy-Residue-Burning-in-Punjab-Farmers-Perspectives-Issue-Brief-29Mar19.pdf
+
 [2] Sharma et al. Rice Acreage Estimation of Ludhiana District using Sentinel-1A Time Series Data, Journal of Agricultural Physics, (2019). https://www.researchgate.net/publication/335490095_Rice_Acreage_Estimation_of_Ludhiana_District_using_Sentinel-1A_Time_Series_Data
+
 [3] Filipponi, F. BAIS2: Burned Area Index for Sentinel-2. Proceedings 2018, 2, 364. https://doi.org/10.3390/ecrs-2-05177
 
 ---
