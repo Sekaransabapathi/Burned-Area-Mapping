@@ -1,6 +1,6 @@
 ## punjab_boundary - punjab boundary layer
 
-//The necessary feature collections for the analysis has to be added.
+//The necessary feature collections for the analysis has to be added manually
 
 //filtering the imagecollection with necessary polarisation, mode, resolution.
 var imgVH = ee.ImageCollection('COPERNICUS/S1_GRD')
