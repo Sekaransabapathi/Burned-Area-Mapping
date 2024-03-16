@@ -1,0 +1,287 @@
+var pb_boundary = ee.FeatureCollection("projects/ee-dhanasekaraniirs/assets/punjab_boundary_2"),
+    pb_rice_mncfc = ee.Image("projects/ee-dhanasekaraniirs/assets/Punjab_ricelayer_2022");
+    pb_districts = ee.FeatureCollection("projects/ee-dhanasekaraniirs/assets/PUNJAB_DISTRICTS");
+
+//The necessary feature collections for the analysis has to be added. They are provided in Data section.
+
+var app = {};
+
+Map.centerObject(pb_boundary,8);
+
+var date_textbox = ui.Textbox({
+  placeholder : 'YYYY-MM-DD',
+  value: '2022-11-30'
+  // onChange: filter_collection
+})
+
+print(date_textbox.getValue().slice(0,4))
+
+var threshold_title = ui.Label({
+  value:"BAIS2 Threshold value",
+  style: {fontWeight: 'bold',fontSize: '15px'}
+});
+
+var threshold_text = ui.Textbox({
+  placeholder : 'bais2 threshold_value',
+  value: '0.9084'
+})
+
+
+app.filter_collection = function(){
+  verPanel1.clear()
+  Map.layers().reset();
+    //Function to mask clouds in Sentinel-2 imagery
+  function maskS2clouds(image){
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11; 
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000)
+              .set({'system:time_start':image.get('system:time_start')});
+  }
+  // var year_int = ee.Number.parse(year);
+  
+  var collection_year = ee.Date(date_textbox.getValue()).get('year')
+  print('collection year', collection_year);
+
+  
+  var date_start = ee.Date.fromYMD(collection_year,9,15);
+  // var date_start = ee.Date(collection_year)
+  print('date_start',date_start);
+  
+  var date_end = ee.Date(date_textbox.getValue());
+  print('date_end',date_end);
+  
+  var bais2_threshold_value = ee.Number.parse(threshold_text.getValue())
+  print('bais2 threshold value',bais2_threshold_value);
+
+  var s2_collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',20))
+                  .select('B4','B3','B2','B6','B7','B8A','B8','B12','QA60')
+                  .filterDate(date_start,date_end)
+                  .filterBounds(pb_boundary)
+                  .map(maskS2clouds);
+  
+  //function for calculating BAIS2 and adding it as a band to the images in imagecollection
+  function bais2_function(image){
+  var bais2 = image.expression(
+  '(1-((B06*B07*B8A)/B04)**0.5)*((B12-B8A)/((B12+B8A)**0.5)+1)',{
+    'B06':image.select('B6'),
+    'B07':image.select('B7'),
+    'B8A':image.select('B8A'),
+    'B04':image.select('B4'),
+    'B12':image.select('B12')
+    }).rename('bais2');
+    return image.addBands([bais2]);
+  }
+
+  //function for calculating nbr and adding it as a band in the image.
+  function nbr_function(image){
+    var nbr = image.normalizedDifference(['B8','B12']).rename('nbr');
+    return image.addBands([nbr]); 
+  }
+
+  var dataset_sep15_nov30_indices = s2_collection.map(bais2_function).map(nbr_function);
+
+  //function for applying threshold value of bais2
+  function bais2_threshold(image){
+    // var bais2_quality = image.select('bais2').clip(pb_boundary).gte(0.9084).rename('bais2_quality');
+    var bais2_quality = image.select('bais2').clip(pb_boundary).gte(bais2_threshold_value).rename('bais2_quality');
+    return image.addBands([bais2_quality]);
+  }
+
+  //mapping the bais2 and nbr value threshold over the images in imagecollection
+  var dataset_sep15_nov30_quality = dataset_sep15_nov30_indices.map(bais2_threshold);
+                                            
+  print('dataset_sep15_nov30_quality',dataset_sep15_nov30_quality);
+  
+  //applying quality mosaic function over the imagecollection using bais2 quality layer
+  var bais2_quality = dataset_sep15_nov30_quality.qualityMosaic('bais2_quality').select(['bais2_quality','bais2']);
+  // print('bais2_quality',bais2_quality);
+
+
+  var pb_rice_mncfc_projected = pb_rice_mncfc.reproject('EPSG:32643',null,10).clip(pb_boundary);
+  print('pb_rice_mncfc_projected',pb_rice_mncfc_projected);
+  
+  var bais2_threshold_rice_mncfc = bais2_quality.select('bais2_quality').eq(1).and(pb_rice_mncfc_projected.eq(1));
+  Map.addLayer(bais2_threshold_rice_mncfc.selfMask(),{min:0,max:1,palette:['red']},'bais2_threshold_rice_mncfc');
+  Map.addLayer(pb_districts,{},'Punjab districts',false,0.6);
+  Map.addLayer(pb_rice_mncfc_projected.selfMask(),{min:0,max:1,palette:['green']},'rice_crop',false);
+  
+  var district_area = ee.Image.pixelArea().updateMask(bais2_threshold_rice_mncfc).divide(1e6)
+        .reduceRegions({
+          collection:pb_districts,
+          reducer:ee.Reducer.sum(),
+          scale:10,
+          crs:'EPSG:4326'
+  });
+  
+  print(district_area);
+  var district_name = district_area.aggregate_array('District');
+  var dt_area = ee.Array(district_area.aggregate_array('sum'));
+  print(district_name);
+  print(dt_area);
+  
+  // Create a chart using the selected columns
+  var chart = ui.Chart.array.values(dt_area,0,district_name)
+  .setSeriesNames(['Burned_area_value'])
+  .setChartType('ColumnChart')
+  .setOptions({
+    title: 'District wise burned area in Punjab',
+    hAxis: { title: 'District_name' },
+    vAxis: { title: 'Burned_area (in sq.km)' }
+  });
+  
+    var table = ui.Chart.feature.byFeature(district_area, 'District','sum');
+    table.setChartType('Table');
+    table.setOptions({allowHtml: true, pageSize:10});
+    table.style().set({stretch: 'both'});
+    print(table);
+    
+  var pb_boundary_geom = pb_boundary.geometry();
+  
+  //Finding the burned area by applying bais2 threshold and masking with MNCFC rice layer
+  var burned_area_bais2_rice_mncfc = ee.Image.pixelArea().updateMask(bais2_threshold_rice_mncfc).divide(1e6)
+                        .reduceRegion({
+                          reducer: ee.Reducer.sum(),
+                          geometry: pb_boundary_geom,
+                          scale: 100,
+                          bestEffort: true,
+                          crs:'EPSG:32643'
+                        });
+                        
+  
+  var area_dict = burned_area_bais2_rice_mncfc.getNumber('area').round();
+  print('area_dict',area_dict);
+  
+  date_end.format('dd-MM-YYYY').evaluate(function(date_nd){
+    var burned_area_value_label = ui.Label({
+    value:'Burned area till in sq.km'+ ' ' + date_nd
+    });
+    verPanel1.add(burned_area_value_label);
+
+  
+  var burned_area_value = ui.Label({
+    value :'Calculating...'
+  });
+  verPanel1.add(burned_area_value).add(chart);
+  
+  area_dict.evaluate(function(area_value){
+  burned_area_value.setValue(area_value);
+  });
+  });
+ 
+};
+
+
+//MAIN PANEL
+var mainPanel = ui.Panel({
+  style: {width: '600px'}
+});
+
+
+//main panel label
+var title = ui.Label({
+  value: 'AGRICULTURE RESIDUE BURNED AREA MAPPING APPLICATION',
+  style: {fontWeight: 'bold',fontSize: '20px'}
+});  
+
+//main panel description
+var sec_title = ui.Label({
+  value: "An Earth engine application to map the agriculture residue burned area using satellite imagery from Sentinel-2 sensors for Kharif rice in the Indian State Punjab.",
+  style: {'fontSize': '14px',color:'black',fontStyle:'italic'}
+});
+
+var bg_title = ui.Label({
+  value: 'BACKGROUND',
+  style: {fontWeight: 'bold',fontSize: '17px'}
+});
+
+//background text
+var bg_text = ui.Label({
+  value: "Rice is a significant crop grown during Kharif season in Punjab. As an easy way to clear the agricultural reisude to prepare the field for next season, the farmers in the Indo-Gangetic plain prefer to burn the crop residue. This causes increased air pollution in those states. In order to get the heat of the situation, it's inevitable to quantify the area burned and which region tops the chart. This application helps to obtain those insights.",
+  style: {'fontSize': '14px',color:'black'},
+  // targetUrl:'https://medium.com/@sekaransabapathi/monitoring-crop-residue-burning-through-satellites-d310fc142b81'
+});
+
+//hyperlink
+var hyperlink = ui.Label({
+  value: "A blog on satellite based residue burned area monitoring",
+  style: {'fontSize': '14px',color:'blue'},
+  targetUrl:'https://medium.com/@sekaransabapathi/monitoring-crop-residue-burning-through-satellites-d310fc142b81'
+});
+
+var sub_title = ui.Label({
+  value: "How it's mapped?",
+  style: {fontWeight: 'bold',fontSize: '14px'}
+});
+
+
+//background text second para
+var bg_text_2 = ui.Label({
+  value: "This application uses data of Sentinel-2 satellite to create an index called 'Burned Area Index for Sentinel-2' which is sensitive to burned areas. Through this index rice fields which are above the threshold value are mapped as burned area based on this research. The threshold value can be changed to evaluate the burned area.",
+  style: {'fontSize': '14px',color:'black'},
+})
+
+var map_title = ui.Label({
+  value: 'MAPPING THE BURNED AREA',
+  style: {fontWeight: 'bold',fontSize: '17px'}
+});
+
+var map_info = ui.Label({
+  value:"Kharif crops harvesting starts around September 15th every year. Therefore the mapping starts from September 15th and the user can select the date till which the burned area has to be calculated. The burned area is calculated based on a Spectral index 'BAIS2' and the value mentioned is an optimal threshold value calculated based on research. District-wise burned area is also calculated and is shown in the form of bar graph.",
+  style: {fontSize: '17px',color:'black'}
+});
+
+
+
+//Adding Panels to Main Panel - vertical
+
+var verPanel1 = ui.Panel({
+  layout: ui.Panel.Layout.flow('vertical'),
+  });
+ 
+var legend = ui.Label({
+  value:'NOTE: Red colour denotes burned area in map',
+  style: {fontSize: '15px'}
+})
+ 
+var slider_title =ui.Label({
+  value:"Select any date from 16th September to 30th November (Kharif rice harvesting season)",
+  style: {fontWeight: 'bold',fontSize: '14px'}
+});
+
+
+var textbox_title = ui.Label({
+  value:"Burned Area",
+  style: {fontWeight: 'bold',fontSize: '15px'}
+});
+
+var download_info = ui.Label({
+  value:"This chart can be downloaded as csv or png.",
+  style: {fontStyle: 'italic',fontSize: '12px'}
+});
+
+mainPanel.add(title).add(sec_title).add(bg_title).add(bg_text).add(sub_title).add(bg_text_2).add(slider_title)
+
+var filter_button = ui.Button({
+  label:'Submit',
+  onClick : app.filter_collection
+});
+
+mainPanel.add(date_textbox).add(threshold_title).add(threshold_text).add(filter_button).add(legend).add(verPanel1).add(download_info)
+
+app.boot = function(){
+  app.filter_collection();
+};
+
+ui.root.add(mainPanel);
+
+app.boot();
+
