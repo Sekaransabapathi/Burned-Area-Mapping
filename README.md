@@ -26,11 +26,13 @@ Based on the harvesting trends of Kharif crops in Punjab, the harvesting dates h
 
 ![application](https://drive.google.com/uc?authuser=0&id=1ddwymDhlPxQZnBj6A3J_43ghD0nQqzcW&export=download)
 
+Link for the application - https://ee-dhanasekaraniirs.projects.earthengine.app/view/stubble-burning-mapping
+
 ---
 
 The application can be reused for,
 1. other study areas.
-2. other indices in place of BAIS-2.
+2. other indices in the place of BAIS-2.
 3. other time periods.
 4. other applications like flood area mapping, places affected by heat stress in a year, etc.
 
