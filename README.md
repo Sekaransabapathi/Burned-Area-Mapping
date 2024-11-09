@@ -1,7 +1,7 @@
 
 <p>
-  <img src="https://iittnif.com/images/logos/Logo.png" width="200" align="left"/>
-  <img src="https://geospatialmedia.s3.amazonaws.com/wp-content/uploads/2020/07/google-earth-engine.jpg" width="200" align="right" />
+  <img src="https://iittnif.com/images/logos/Logo.png" width="200" align="center"/>
+  <img src="https://geospatialmedia.s3.amazonaws.com/wp-content/uploads/2020/07/google-earth-engine.jpg" width="200" align="center" />
 </p>
 
 # Dynamic Tool to map agricultural residue burnt area using Sentinel-2
