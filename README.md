@@ -1,4 +1,4 @@
-![](https://iittnif.com/images/logos/Logo.png?raw=true "Title")
+<img src="https://iittnif.com/images/logos/Logo.png" width="300" />
 
 # Dynamic Tool to map agricultural residue burnt area using Sentinel-2
 The repository contains data and code for dynamically mapping agriculture residue burned areas by considering the study area as Punjab, India.
