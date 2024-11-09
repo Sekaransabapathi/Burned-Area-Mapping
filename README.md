@@ -53,5 +53,5 @@ This work was done as a part of a summer research program called Nav-i-GEE organ
 <p>
 <img src="https://iittnif.com/images/logos/Logo.png" width="300">
 <img src="https://geospatialmedia.s3.amazonaws.com/wp-content/uploads/2020/07/google-earth-engine.jpg" width="300">
-<img src="https://www.ceew.in/sites/default/files/ceew-social.png" width="200 >
+<img src="https://www.ceew.in/sites/default/files/ceew-social.png" width="200">
 </p>
