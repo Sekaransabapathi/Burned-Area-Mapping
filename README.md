@@ -1,5 +1,8 @@
-
-<img src="https://iittnif.com/images/logos/Logo.png" width="200" align="center">
+<p>
+<img src="https://iittnif.com/images/logos/Logo.png" width="200">
+<img src="https://geospatialmedia.s3.amazonaws.com/wp-content/uploads/2020/07/google-earth-engine.jpg" width="200" />
+<img src="https://www.ceew.in/sites/default/files/ceew-social.png" width="200 >
+</p>
 
 # Dynamic Tool to map agricultural residue burnt area using Sentinel-2
 The repository contains data and code for dynamically mapping agriculture residue burned areas by considering the study area as Punjab, India.
