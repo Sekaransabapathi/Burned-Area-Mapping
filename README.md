@@ -1,6 +1,9 @@
 <img src="https://iittnif.com/images/logos/Logo.png" width="300" align="left">
 <img src="https://geospatialmedia.s3.amazonaws.com/wp-content/uploads/2020/07/google-earth-engine.jpg" width="200" align="left">
 
+[![OC sponsor 0](https://opencollective.com/bootstrap/sponsor/0/avatar.svg)](https://iittnif.com/images/logos/Logo.png)
+[![OC sponsor 1](https://opencollective.com/bootstrap/sponsor/1/avatar.svg)](https://opencollective.com/bootstrap/sponsor/1/website)
+
 ---
 
 # Dynamic Tool to map agricultural residue burnt area using Sentinel-2
